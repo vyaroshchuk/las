@@ -12,7 +12,7 @@ def books_request():
 
 def book_request(book_id: str):
     r = requests.get(f'{BOOKS_HOST}/book/{book_id}')
-    return loads(r.text)
+    return loads(r.text) if r.status_code == 200 else None, r.status_code
 
 
 def book_add_request(data: dict):

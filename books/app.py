@@ -24,6 +24,8 @@ def books():
 @app.route('/book/<book_id>', methods=['GET'])
 def book(book_id: str):
     _book = collection.find_one({"_id": ObjectId(book_id)})
+    if not _book:
+        return Response('Book not found', status=404)
     unpack_id(_book)
     return jsonify(_book)
 

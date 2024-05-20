@@ -18,7 +18,9 @@ def books():
 @books_bp.route('/book/<book_id>', methods=['GET'])
 def book(book_id: str):
     if auth(request.headers.get('Authorization')):
-        _book = book_request(book_id)
+        _book, status = book_request(book_id)
+        if status == 404:
+            return Response('Book not found', status=404)
         return jsonify(_book)
     else:
         return Response(status=401)
