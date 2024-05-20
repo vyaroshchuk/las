@@ -1,4 +1,6 @@
 # Library Management System
+[![Docker Image CI](https://github.com/vyaroshchuk/lms/actions/workflows/docker-image.yml/badge.svg)](https://github.com/vyaroshchuk/lms/actions/workflows/docker-image.yml)
+
 
 LMS - бекенд онлайн-системи для керування бібліотекою.
 
