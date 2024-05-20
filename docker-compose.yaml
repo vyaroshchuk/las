@@ -1,0 +1,126 @@
+services:
+  users-db:
+    image: postgres
+    restart: unless-stopped
+    container_name: users-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=users-db
+    ports:
+      - '5432:5432'
+    volumes:
+      - users-db:/var/lib/postgresql/data
+      - ./users/init.sql:/docker-entrypoint-initdb.d/create_tables.sql
+  rental-db:
+    image: postgres
+    restart: unless-stopped
+    container_name: rental-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=rental-db
+    ports:
+      - '5433:5432'
+    volumes:
+      - rental-db:/var/lib/postgresql/data
+      - ./rental/init.sql:/docker-entrypoint-initdb.d/create_tables.sql
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: 'rabbitmq'
+    ports:
+      - 5672:5672
+      - 15672:15672
+    volumes:
+      - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+      - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+  redis:
+    image: 'bitnami/redis:latest'
+    container_name: redis
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - '6379:6379'
+  mongo1:
+    image: mongo:7.0
+    command: [ "--replSet", "rs0", "--bind_ip_all", "--port", "27017" ]
+    ports:
+      - 27017:27017
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      MONGO_INITDB_DATABASE: "books"
+    healthcheck:
+      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'host.docker.internal:27017',priority:1},{_id:1,host:'host.docker.internal:27018',priority:0.5},{_id:2,host:'host.docker.internal:27019',priority:0.5}]}) }" | mongosh --port 27017 --quiet
+      interval: 5s
+      timeout: 30s
+      start_period: 0s
+      start_interval: 1s
+      retries: 30
+    volumes:
+#      - ./books/mongo_init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - "mongo1_data:/data/db"
+      - "mongo1_config:/data/configdb"
+  mongo2:
+    image: mongo:7.0
+    command: [ "--replSet", "rs0", "--bind_ip_all", "--port", "27018" ]
+    ports:
+      - 27018:27018
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - "mongo2_data:/data/db"
+      - "mongo2_config:/data/configdb"
+  mongo3:
+    image: mongo:7.0
+    command: [ "--replSet", "rs0", "--bind_ip_all", "--port", "27019" ]
+    ports:
+      - 27019:27019
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - "mongo3_data:/data/db"
+      - "mongo3_config:/data/configdb"
+  rental:
+    build: rental
+    depends_on:
+      - rental-db
+      - rabbitmq
+    links:
+      - 'rental-db:database'
+    ports:
+      - '8003:5000'
+  books:
+    build: books
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    ports:
+      - '8002:5000'
+  users:
+    build: users
+    depends_on:
+      - users-db
+      - redis
+    links:
+      - 'users-db:database'
+    ports:
+      - '8001:5000'
+  api_gateway:
+    build: api_gateway
+    depends_on:
+      - redis
+    ports:
+      - '8000:5000'
+volumes:
+  users-db:
+    driver: local
+  rental-db:
+    driver: local
+  mongo1_data:
+  mongo2_data:
+  mongo3_data:
+  mongo1_config:
+  mongo2_config:
+  mongo3_config:
